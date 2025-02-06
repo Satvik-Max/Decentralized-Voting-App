@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin Portal</title>
+    <link rel="stylesheet" href="../css/admin.css">
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="title">Decentralized Voting Using Ethereum Blockchain</h1>
+      
+      <div class="card">
+        <h2 class="section-title">👤 Add Candidate</h2>
+        <p class="description">Enter candidate details and their party affiliation</p>
+        
+        <div class="form-group">
+          <label>Candidate Name</label>
+          <input id="name" type="text" placeholder="Enter candidate's name" class="input-field">
+        </div>
+
+        <div class="form-group">
+          <label>Political Party</label>
+          <!-- <select id="party" class="input-field">
+            <option>Select a party</option>
+          </select> -->
+          <input id="party" type="text" class="input-field" name="party" placeholder ="Candidates party">
+        </div>
+
+       
+
+        <button id="addCandidate" class="button">👤 Add Candidate</button>
+      </div>
+      
+      <div class="card">
+        <h2 class="section-title">📅 Define Voting Dates</h2>
+        <p class="description">Set the start and end dates for the voting period</p>
+        
+        <div class="date-group">
+          <div class="form-group">
+            <label>Start Date</label>
+            <input id="startDate" type="date" class="input-field">
+          </div>
+          <div class="form-group">
+            <label>End Date</label>
+            <input id="endDate" type="date" class="input-field">
+          </div>
+        </div>
+        
+        <button id="addDate" class="button">📅 Define Dates</button>
+      </div>
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="../dist/app.bundle.js" type="module"></script>
+  </body>
+</html>

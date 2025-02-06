@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Voting Page</title>
+    <link rel="stylesheet" type="text/css" href="../css/index.css">
+    <style>
+      /* Styling for camera access */
+      #videoContainer {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        border: 2px solid #fff;
+        background-color: rgba(0, 0, 0, 0.7);
+      }
+
+      #video {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 8px;
+      }
+
+      /* Timer styling */
+      #timer {
+        color: red;
+        font-size: 20px;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="head" class="text-center">
+      <h1 align="center">Decentralized Voting Using Ethereum Blockchain</h1>
+      <h2 align="center">Please cast your vote below!</h2>
+      <p id="timer">Time left: 30 seconds</p>
+    </div>
+
+    <!-- Candidate list -->
+    <div id="candidate" class="container">
+      <table class="table text-center">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Party</th>
+            <th>Total Votes</th>
+          </tr>
+        </thead>
+        <tbody id="boxCandidate"></tbody>
+      </table>
+    </div>
+
+    <!-- Voting section -->
+    <div id="vote">
+      <p>Please select one of the candidates and click the vote button.</p>
+      <button id="voteButton" class="btn btn-primary" onclick="App.vote()">Vote</button>
+      <div id="msg"></div>
+    </div>
+
+    <!-- Account info -->
+    <div id="account">
+      <p id="accountAddress" class="text-center"></p>
+    </div>
+
+    <!-- Video feed for camera access -->
+    <div id="videoContainer">
+      <video id="video" autoplay></video>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
+    <script src="../dist/app.bundle.js" type="module"></script>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+
+    <script>
+      // Timer functionality
+      let countdownTimer = 10;
+      const timerElement = document.getElementById('timer');
+
+      const timerInterval = setInterval(function() {
+        if (countdownTimer > 0) {
+          countdownTimer--;
+          timerElement.textContent = `Time left: ${countdownTimer} seconds`;
+        } else {
+          clearInterval(timerInterval);
+          alert("Time's up! Redirecting to login...");
+          window.location.href = '/'; // Redirect to login page
+        }
+      }, 1000);
+
+      // Camera access functionality
+      async function startCamera() {
+        const video = document.getElementById('video');
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user' } // Use 'user' for front camera
+          });
+          video.srcObject = stream;
+          console.log("Camera started successfully.");
+          
+          // Initialize face-api.js
+          await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+          console.log("Face-api.js model loaded.");
+          
+          detectFace(video); // Start detecting faces
+        } catch (err) {
+          console.error("Error accessing camera: ", err);
+          alert("Error accessing camera. Please ensure that camera permissions are granted.");
+        }
+      }
+
+      // Face detection using face-api.js
+      async function detectFace(videoElement) {
+        const canvas = faceapi.createCanvasFromMedia(videoElement);
+        document.body.append(canvas); // Ensure canvas is inside the body (or modify as needed)
+        const displaySize = { width: videoElement.width, height: videoElement.height };
+        faceapi.matchDimensions(canvas, displaySize);
+
+        // Detect faces every 100ms
+        setInterval(async () => {
+          const detections = await faceapi.detectAllFaces(videoElement).withFaceLandmarks().withFaceDescriptors();
+          const resizedDetections = faceapi.resizeResults(detections, displaySize);
+          canvas.clear();
+          canvas.drawDetections(resizedDetections);
+
+          if (detections.length > 1) {
+            alert("Multiple faces detected! Logging out.");
+            window.location.href = '/';  // Redirect to login page
+          }
+        }, 100);
+      }
+
+      // Start camera and load models on page load
+      window.onload = () => {
+        startCamera();
+        fetchCandidates(); // Fetch candidates for voting
+      };
+
+      // Voting functionality
+      window.App = {
+        async vote() {
+          const candidateID = $("input[name='candidate']:checked").val();
+          if (!candidateID) {
+            $("#msg").html("<p>Please vote for a candidate.</p>");
+            return;
+          }
+
+          try {
+            const instance = await VotingContract.deployed();
+            await instance.vote(parseInt(candidateID));
+            $("#voteButton").attr("disabled", true);
+            $("#msg").html("<p>Voted</p>");
+
+            // After voting, reset the timer and redirect
+            clearInterval(timerInterval);
+            alert("You voted! Redirecting to login...");
+            window.location.href = '/';  // Redirect to login page
+          } catch (err) {
+            console.error("ERROR! " + err.message);
+          }
+        }
+      };
+
+      // Fetch and display candidates
+      async function fetchCandidates() {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          if (accounts.length === 0) {
+            console.error("No account selected. Please connect your wallet.");
+            return;
+          }
+
+          const web3 = new Web3(window.ethereum);
+          const votingContract = new web3.eth.Contract(VotingArtifacts.abi, VotingArtifacts.networks['5777'].address);
+
+          const countCandidates = await votingContract.methods.getCountCandidates().call();
+          for (let i = 0; i < countCandidates; i++) {
+            const data = await votingContract.methods.getCandidate(i + 1).call();
+            const id = data[0];
+            const name = data[1];
+            const party = data[2];
+            const voteCount = data[3];
+
+            const candidateRow = `
+              <tr>
+                <td><input class="form-check-input" type="radio" name="candidate" value="${id}" id="${id}">${name}</td>
+                <td>${party}</td>
+                <td>${voteCount}</td>
+              </tr>`;
+            $("#boxCandidate").append(candidateRow);
+          }
+        } catch (err) {
+          console.error("ERROR! " + err.message);
+        }
+      }
+    </script>
+  </body>
+</html>
